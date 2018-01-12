@@ -108,9 +108,9 @@ def finternal(BHI_R1f,pos_TS1):
     return np.resize(np.array(exp),(len(exp),1)), np.array(sites)
 
 #load RNA seq data(position based) for forward strand of chromsome 1
-BHI_R1f = np.genfromtxt('D:\\Dropbox (MIT)\\Postdoc\\programs\\seq_annotation\\BHI_RNAseq_CP016345.1_f.wig')
+BHI_R1f = np.genfromtxt('D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\BHI\\RNA-seq\\wig\\CP016345.1_f.wig')
 #load position gene coding region for forward strand of chr1 (start and end position)
-pos_TIS1 = np.loadtxt('\\Data\\pos_chr1.txt')
+pos_TIS1 = np.loadtxt('Data\\pos_chr1.txt')
 pos_TIS1 = pos_TIS1.astype(int)
 print pos_TIS1[0:10,]
 
