@@ -3,7 +3,7 @@ import numpy as np
 import scipy.io
 import matplotlib.pylab as plt
 
-#find TSS before start codon
+# find TSS before start codon
 def fore_TSS(expression,BHI_R1f,pos_TIS,i):
     r= list(pos_TIS[i,])
     for j in range(150):
@@ -24,7 +24,7 @@ def after_TSS(expression,BHI_R1f,pos_TIS,i):
                     break
     return r
 
-#find terminator after end codon
+# find terminator after end codon
 def after_TAA(expression,BHI_R1f,pos_TIS,i):
     r = 0
     for j in range(150):
@@ -34,7 +34,7 @@ def after_TAA(expression,BHI_R1f,pos_TIS,i):
                 break
     return r
     
-#refine transcript start and end sites
+# refine transcript start and end sites
 def refine_TSS(BHI_R1f, pos_TIS):
     BHI_R1f = BHI_R1f
     expression = np.zeros((pos_TIS.shape[0],1))
@@ -51,7 +51,7 @@ def refine_TSS(BHI_R1f, pos_TIS):
 
     return expression,pos_TS1
 
-#search for orphan promoters, defined at least 150bp away from gene coding regions.
+# search for orphan promoters, defined at least 150bp away from gene coding regions.
 def pro_ophan(counts):
     posl = []
     strenl = []
@@ -79,7 +79,7 @@ def forphan(BHI_R1f,pos_TS1):
             sites= sites + (pos+pos_TS1[i,1]).tolist()
     return np.resize(np.array(exp),(len(exp),1)), np.array(sites)
 
-#search for internal promoters
+# search for internal promoters
 def pro_internal(counts):
     posl = []
     strenl = []
@@ -107,16 +107,16 @@ def finternal(BHI_R1f,pos_TS1):
             sites= sites+(pos+pos_TS1[i,0]).tolist()
     return np.resize(np.array(exp),(len(exp),1)), np.array(sites)
 
-#load RNA seq data(position based) for forward strand of chromsome 1
+# load RNA seq data(position based) for forward strand of chromsome 1
 BHI_R1f = np.genfromtxt('D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\BHI\\RNA-seq\\wig\\CP016345.1_f.wig')
-#load position gene coding region for forward strand of chr1 (start and end position)
+# load position gene coding region for forward strand of chr1 (start and end position)
 pos_TIS1 = np.loadtxt('Data\\pos_chr1.txt')
 pos_TIS1 = pos_TIS1.astype(int)
 print pos_TIS1[0:10,]
 
-#find transcription start/end sites near gene annotation
+# find transcription start/end sites near gene annotation
 exp1,sites1 = refine_TSS(BHI_R1f,pos_TIS1)
-#find transcription start/end sites between gene coding regions
+# find transcription start/end sites between gene coding regions
 exp2,sites2 = forphan(BHI_R1f,pos_TIS1)
-#find TSS in gene coding regions
+# find TSS in gene coding regions
 exp3,sites3 = finternal(BHI_R1f,pos_TIS1)
