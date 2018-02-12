@@ -10,8 +10,9 @@ from sklearn.model_selection import cross_val_score
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.neural_network import MLPClassifier
+import cPickle
 
-def importdata():
+def import_data():
     # import annotation and RNAseq reads data for both forward and backward strand
     jingm = np.loadtxt('Data\\jing_manual_cleaned.txt', dtype='int')
     M91f = np.genfromtxt(
@@ -54,12 +55,15 @@ def importdata():
 
 # harvest promoter from sequencing data
 # seq: sequencing data
+# chrom: DNA sequence
 # model: sklearn model
 # position: position of unannotated gene
 # para: para[0], chrome; para[1], strand; para[2]: windwo
-def harvest_pro(seq, clf, position, para):
+# pospromoter: end of the promoter region
+def harvest_pro(seq, chrom, clf, position, para):
     prepromoter = []
     pospromoter = []
+    seqpromoter = []
     if para[1] == -1:
         seqt = np.copy(seq[::-1])
         positiont = np.copy(position)
@@ -74,21 +78,25 @@ def harvest_pro(seq, clf, position, para):
                     if clf.predict(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1].reshape(-1,para[2])) == 1\
                             and (seqt[positiont[i,0]-j,1]+1)/(seqt[positiont[i,0]-para[2]-j,1]+1)>2:
                         prepromoter.append(list(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1]))
+                        seqpromoter.append(list(chrom[positiont[i,0]-100-j:positiont[i,0]-j]))
                         if para[1] == -1:
                             pospromoter.append([para[0], para[1], len(seqt) - positiont[i, 0] + j])
                         else:
                             pospromoter.append([para[0],para[1], positiont[i,0]-j])
                         break
-    return prepromoter, pospromoter
+    return prepromoter, pospromoter, seqpromoter
 
 # harvest terminator from sequencing data, using the same model as promoter
 # seq: sequencing data
+# chrom: DNA sequence
 # model: sklearn model
 # position: position of unannotated gene
-# para: para[0], chrome; para[1], strand; para[2]: windwo
-def harvest_ter(seq, clf, position, para):
+# para: para[0], chrome; para[1], strand; para[2]: window
+# pospromoter: end of the terminator region
+def harvest_ter(seq, chrom, clf, position, para):
     prepromoter = []
     pospromoter = []
+    seqpromoter = []
     if para[1] == 1:
         seqt = np.copy(seq[::-1])
         positiont = np.copy(position)
@@ -103,21 +111,20 @@ def harvest_ter(seq, clf, position, para):
                     if clf.predict(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1].reshape(-1,para[2])) == 1\
                             and (seqt[positiont[i,0]-j,1]+1)/(seqt[positiont[i,0]-para[2]-j,1]+1)>2:
                         prepromoter.append(list(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1]))
+                        seqpromoter.append(list(chrom[positiont[i, 0] - 100 - j:positiont[i, 0] - j]))
                         if para[1] == 1:
                             pospromoter.append([para[0], -1*para[1], len(seqt)-positiont[i, 0] + j])
                         else:
                             pospromoter.append([para[0],-1*para[1], positiont[i,0]-j])
                         break
-    return prepromoter, pospromoter
+    return prepromoter, pospromoter, seqpromoter
 
-if __name__ == '__main__':
-    #importdata()
+def train_model():
     # load data
     jpro = np.loadtxt('Data\\jpromoters.txt', dtype='int')
     jtem = np.loadtxt('Data\\jterms.txt', dtype='int')
     jrand = np.loadtxt('Data\\jrandom.txt', dtype='int')
-    print jpro[0,]
-
+    # train models
     X_train = np.concatenate((jpro[:200,], jrand[:400,]))
     Y_train = np.concatenate((np.ones((200,1)), np.zeros((400,1))))
     neg_sample = 1000
@@ -144,7 +151,36 @@ if __name__ == '__main__':
     clf.fit(X[:,50-window/2:50+window/2], Y)
     #print sum(clf.predict(X[:jpro.shape[0],10:70]))/jpro.shape[0]
 
-    #start classification
+    # save the classifier
+    with open('Data\\dumped_classifier.pkl', 'wb') as fid:
+        cPickle.dump(clf, fid)
+    return 0
+
+if __name__ == '__main__':
+    #import_data()
+    #train_model()
+
+    # load model
+    with open('Data\\dumped_classifier.pkl', 'rb') as fid:
+        clf = cPickle.load(fid)
+
+    # load sequence
+    # set1: chr1 forward; set2, chr1 backward; set3 chr2 forward; set4, chr2 backward.
+    # set2 and set4 are reversed
+    chrom = {}
+    f1 = open(
+        'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\index\\fasta\\Vnatriegans\\CP016345.1.dna').readlines()
+    chrom["set1"] = f1[1][6:-325]
+    f2 = open(
+        'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\index\\fasta\\Vnatriegans\\CP016346.1.dna').readlines()
+    chrom["set3"] = f2[1][6:-2142]
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    chrom["set2"] = [complement.get(base, base) for base in chrom["set1"]]
+    chrom["set2"] = ''.join(chrom["set2"][::-1])
+    chrom["set4"] = [complement.get(base, base) for base in chrom["set3"]]
+    chrom["set4"] = ''.join(chrom["set4"][::-1])
+
+    # start classification
     unanno = np.loadtxt('Data\\unannotated.txt', dtype='int')
     M9 = {}
     M9["set1"] = np.genfromtxt(
@@ -155,21 +191,33 @@ if __name__ == '__main__':
         'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\M9\\RNA-seq\\wig\\CP016346.1_f.wig')
     M9["set4"] = np.genfromtxt(
         'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\M9\\RNA-seq\\wig\\CP016346.1_r.wig')
-    # classify promoters
-    f1 = open('Data\\prepromoters.txt', 'ab')
-    f2 = open('Data\\pospromoters.txt', 'ab')
-    for i in range(4):
-        prepromoter, pospromoter = harvest_pro(M9["set"+str(i+1)],clf,unanno, [i/2+1,int(((i+1)%2-0.5)*2),window])
-        np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
-        np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
-    f1.close()
-    f2.close()
-    # classify terminators
-    f1 = open('Data\\preterminators.txt', 'ab')
-    f2 = open('Data\\posterminators.txt', 'ab')
-    for i in range(4):
-        prepromoter, pospromoter = harvest_ter(M9["set"+str(i+1)],clf,unanno, [i/2+1,int(((i)%2-0.5)*2),window])
-        np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
-        np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
-    f1.close()
-    f2.close()
+    # plt.plot(M9["set1"][101271-40:101271,1])
+    # plt.show()
+    # print chrom["set1"][101271-100:101271]
+
+
+    # # classify promoters
+    # window = 40
+    # f1 = open('Data\\prepromoters.txt', 'ab')
+    # f2 = open('Data\\pospromoters.txt', 'ab')
+    # f3 = open('Data\\seqpromoters.txt', 'ab')
+    # for i in range(4):
+    #     prepromoter, pospromoter, seqpromoter = harvest_pro(M9["set"+str(i+1)][2:],chrom["set"+str(i+1)], clf,unanno, [i/2+1,int(((i+1)%2-0.5)*2),window])
+    #     np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
+    #     np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
+    #     np.savetxt(f3, seqpromoter, fmt='%s')
+    # f1.close()
+    # f2.close()
+    # f3.close()
+    # # classify terminators
+    # f1 = open('Data\\preterminators.txt', 'ab')
+    # f2 = open('Data\\posterminators.txt', 'ab')
+    # f3 = open('Data\\seqterminators.txt', 'ab')
+    # for i in range(4):
+    #     prepromoter, pospromoter, seqpromoter = harvest_ter(M9["set"+str(i+1)][2:],chrom["set"+str(i+1)],clf,unanno, [i/2+1,int(((i)%2-0.5)*2),window])
+    #     np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
+    #     np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
+    #     np.savetxt(f3, seqpromoter, fmt='%s')
+    # f1.close()
+    # f2.close()
+    # f3.close()
