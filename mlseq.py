@@ -78,7 +78,7 @@ def harvest_pro(seq, chrom, clf, position, para):
                     if clf.predict(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1].reshape(-1,para[2])) == 1\
                             and (seqt[positiont[i,0]-j,1]+1)/(seqt[positiont[i,0]-para[2]-j,1]+1)>2:
                         prepromoter.append(list(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1]))
-                        seqpromoter.append(list(chrom[positiont[i,0]-100-j:positiont[i,0]-j]))
+                        seqpromoter.append(list(chrom[positiont[i,0]-100-j+para[2]:positiont[i,0]-j+para[2]]))
                         if para[1] == -1:
                             pospromoter.append([para[0], para[1], len(seqt) - positiont[i, 0] + j])
                         else:
@@ -105,17 +105,19 @@ def harvest_ter(seq, chrom, clf, position, para):
         seqt = np.copy(seq)
         positiont = np.copy(position)
     for i in range(positiont.shape[0]):
-        if positiont[i,2] == para[0] and positiont[i,3] == -1*para[1]:
-            if seqt[positiont[i, 0],1] > 0:
+        if positiont[i,2] == para[0] and positiont[i,3] == para[1]:
+            if seqt[positiont[i, 0],1] > 0 and positiont[i,0]> 300:
                 for j in range(200):
                     if clf.predict(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1].reshape(-1,para[2])) == 1\
                             and (seqt[positiont[i,0]-j,1]+1)/(seqt[positiont[i,0]-para[2]-j,1]+1)>2:
                         prepromoter.append(list(seqt[positiont[i,0]-para[2]-j:positiont[i,0]-j,1]))
-                        seqpromoter.append(list(chrom[positiont[i, 0] - 100 - j:positiont[i, 0] - j]))
+                        seqpromoter.append(list(chrom[
+                                                len(seqt) - positiont[i, 0] + j - 100 + para[2]:len(seqt) - positiont[
+                                                    i, 0] + j + para[2]]))
                         if para[1] == 1:
-                            pospromoter.append([para[0], -1*para[1], len(seqt)-positiont[i, 0] + j])
+                            pospromoter.append([para[0], para[1], len(seqt)-positiont[i, 0] + j])
                         else:
-                            pospromoter.append([para[0],-1*para[1], positiont[i,0]-j])
+                            pospromoter.append([para[0],para[1], positiont[i,0]-j])
                         break
     return prepromoter, pospromoter, seqpromoter
 
@@ -156,6 +158,18 @@ def train_model():
         cPickle.dump(clf, fid)
     return 0
 
+# convert a sequence set to meme file
+def output_meme():
+    termseq = open('Data\\seqterminators.txt').readlines()
+    f1 = open('Data\\terminators_meme.txt', 'wb')
+    print termseq[0].replace(' ','')
+    for i in range(len(termseq)):
+        f1.write('>seq'+str(i+1))
+        f1.write('\n')
+        f1.write(termseq[i].replace(' ',''))
+    f1.close()
+    return 0
+
 if __name__ == '__main__':
     #import_data()
     #train_model()
@@ -191,10 +205,9 @@ if __name__ == '__main__':
         'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\M9\\RNA-seq\\wig\\CP016346.1_f.wig')
     M9["set4"] = np.genfromtxt(
         'D:\\Dropbox (MIT)\\Postdoc\\dataset\\Vibrio Natriegens data\\M9\\RNA-seq\\wig\\CP016346.1_r.wig')
-    # plt.plot(M9["set1"][101271-40:101271,1])
+    # plt.plot(M9["set4"][99558-40:99558,1])
     # plt.show()
-    # print chrom["set1"][101271-100:101271]
-
+    # print chrom["set4"][-99558-60:-99558+40]
 
     # # classify promoters
     # window = 40
@@ -206,6 +219,7 @@ if __name__ == '__main__':
     #     np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
     #     np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
     #     np.savetxt(f3, seqpromoter, fmt='%s')
+    #     print len(prepromoter)
     # f1.close()
     # f2.close()
     # f3.close()
@@ -214,10 +228,11 @@ if __name__ == '__main__':
     # f2 = open('Data\\posterminators.txt', 'ab')
     # f3 = open('Data\\seqterminators.txt', 'ab')
     # for i in range(4):
-    #     prepromoter, pospromoter, seqpromoter = harvest_ter(M9["set"+str(i+1)][2:],chrom["set"+str(i+1)],clf,unanno, [i/2+1,int(((i)%2-0.5)*2),window])
+    #     prepromoter, pospromoter, seqpromoter = harvest_ter(M9["set"+str(i+1)][2:],chrom["set"+str(i+1)],clf,unanno, [i/2+1,int(((i+1)%2-0.5)*2),window])
     #     np.savetxt(f1, prepromoter, fmt='%d', delimiter='\t')
     #     np.savetxt(f2, pospromoter, fmt='%d', delimiter='\t')
     #     np.savetxt(f3, seqpromoter, fmt='%s')
+    #     print len(prepromoter)
     # f1.close()
     # f2.close()
     # f3.close()
